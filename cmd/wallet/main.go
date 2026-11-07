@@ -23,6 +23,11 @@ func main() {
 	}
 	defer pool.Close()
 
+	err = postgres.Migrate(ctx, pool)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	port := cfg.HTTP.Port
 
 	mux := http.NewServeMux()
