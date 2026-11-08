@@ -7,7 +7,9 @@ import (
 	"net/http"
 
 	"github.com/Polikarpov00/test_task_wallet/internal/config"
+	"github.com/Polikarpov00/test_task_wallet/internal/handler"
 	"github.com/Polikarpov00/test_task_wallet/internal/repository/postgres"
+	"github.com/Polikarpov00/test_task_wallet/internal/service"
 )
 
 func main() {
@@ -30,11 +32,15 @@ func main() {
 
 	port := cfg.HTTP.Port
 
-	mux := http.NewServeMux()
+	repo := postgres.NewWalletRepo(pool)
+	svc := service.NewWalletService(repo)
+	h := handler.New(svc)
 
+	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
+	h.Register(mux)
 
 	server := &http.Server{
 		Addr:    ":" + port,
