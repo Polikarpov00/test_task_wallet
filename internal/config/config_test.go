@@ -7,6 +7,9 @@ import (
 	"github.com/Polikarpov00/test_task_wallet/internal/config"
 )
 
+// Сборка строки подключения к Postgres.
+// Спецсимволы в пароле (@, /) должны экранироваться,
+// иначе DSN распарсится неправильно.
 func TestDBConfig_DSN(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -37,6 +40,9 @@ func TestDBConfig_DSN(t *testing.T) {
 	}
 }
 
+// Заданы только обязательные переменные.
+// Ожидаем, что они прочитаются, а остальные поля
+// получат значения по умолчанию (порт 5432, MaxConns 20, ReadTimeout 5s).
 func TestLoad_Success(t *testing.T) {
 	t.Setenv("DB_HOST", "localhost")
 	t.Setenv("DB_USER", "test_user")
@@ -61,6 +67,8 @@ func TestLoad_Success(t *testing.T) {
 	}
 }
 
+// Пустой DB_HOST.
+// Ожидаем ошибку при загрузке: сервис не должен стартовать с неполным конфигом.
 func TestLoad_MissingRequired(t *testing.T) {
 	t.Setenv("DB_HOST", "")
 	t.Setenv("DB_USER", "test_user")
