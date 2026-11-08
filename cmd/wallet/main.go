@@ -2,9 +2,12 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/Polikarpov00/test_task_wallet/internal/config"
 	"github.com/Polikarpov00/test_task_wallet/internal/handler"
@@ -18,19 +21,18 @@ func main() {
 		log.Fatal(err)
 	}
 
-	ctx := context.Background()
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
 	pool, err := postgres.NewPool(ctx, cfg.DB)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer pool.Close()
 
-	err = postgres.Migrate(ctx, pool)
-	if err != nil {
+	if err := postgres.Migrate(ctx, pool); err != nil {
 		log.Fatal(err)
 	}
-
-	port := cfg.HTTP.Port
 
 	repo := postgres.NewWalletRepo(pool)
 	svc := service.NewWalletService(repo)
@@ -43,12 +45,27 @@ func main() {
 	h.Register(mux)
 
 	server := &http.Server{
-		Addr:    ":" + port,
-		Handler: mux,
+		Addr:         ":" + cfg.HTTP.Port,
+		Handler:      mux,
+		ReadTimeout:  cfg.HTTP.ReadTimeout,
+		WriteTimeout: cfg.HTTP.WriteTimeout,
 	}
 
-	fmt.Println("server started")
-	if err := server.ListenAndServe(); err != nil {
-		log.Fatal(err)
+	go func() {
+		log.Printf("server started on :%s", cfg.HTTP.Port)
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatalf("listen: %v", err)
+		}
+	}()
+
+	<-ctx.Done()
+	log.Println("shutting down...")
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.HTTP.ShutdownTimeout)
+	defer cancel()
+
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		log.Printf("forced shutdown: %v", err)
 	}
+	log.Println("server stopped")
 }
