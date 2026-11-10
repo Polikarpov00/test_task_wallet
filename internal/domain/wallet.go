@@ -2,8 +2,6 @@ package domain
 
 import (
 	"errors"
-
-	"github.com/google/uuid"
 )
 
 type OperationType string
@@ -24,8 +22,3 @@ var (
 	ErrInvalidAmount     = errors.New("amount must be positive")
 	ErrInvalidWalletID   = errors.New("wallet id is required")
 )
-
-type Wallet struct {
-	ID      uuid.UUID
-	Balance int64
-}
